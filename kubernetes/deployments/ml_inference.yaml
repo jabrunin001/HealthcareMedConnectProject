@@ -1,0 +1,142 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-inference-service
+  namespace: default
+  labels:
+    app: ml-inference-service
+    component: ml
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ml-inference-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: ml-inference-service
+        component: ml
+    spec:
+      containers:
+      - name: ml-inference
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/medconnect/ml-inference:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+        env:
+        - name: ENVIRONMENT
+          value: "${ENVIRONMENT}"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: PATIENT_TABLE_NAME
+          value: "PatientTable"
+        - name: OBSERVATION_TABLE_NAME
+          value: "ObservationTable"
+        - name: PREDICTION_TABLE_NAME
+          value: "PredictionTable"
+        - name: ML_PREDICTION_STREAM
+          value: "med-connect-ml-prediction"
+        - name: NOTIFICATION_STREAM
+          value: "med-connect-notification"
+        - name: AWS_REGION
+          value: "${AWS_REGION}"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      serviceAccountName: ml-inference-service-account
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-inference-service
+  namespace: default
+  labels:
+    app: ml-inference-service
+    component: ml
+spec:
+  selector:
+    app: ml-inference-service
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-inference-service-account
+  namespace: default
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::${AWS_ACCOUNT_ID}:role/MedConnectMlServiceRole"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ml-inference-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: "alb"
+    alb.ingress.kubernetes.io/scheme: "internal"
+    alb.ingress.kubernetes.io/target-type: "ip"
+    alb.ingress.kubernetes.io/healthcheck-path: "/health"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /predict
+        pathType: Prefix
+        backend:
+          service:
+            name: ml-inference-service
+            port:
+              number: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ml-inference-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ml-inference-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80 

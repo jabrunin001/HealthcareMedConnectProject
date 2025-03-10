@@ -1,0 +1,46 @@
+# AWS SDK
+boto3>=1.26.0
+aws-lambda-powertools>=2.13.0
+
+# FHIR
+fhir.resources>=6.4.0
+smart-on-fhir-client>=0.8.0
+
+# API and Web
+fastapi>=0.95.0
+pydantic>=1.10.7
+uvicorn>=0.21.1
+httpx>=0.23.3
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.2
+pyarrow>=11.0.0
+
+# Machine Learning
+scikit-learn>=1.2.2
+tensorflow>=2.12.0
+transformers>=4.28.1
+
+# Database
+pymongo>=4.3.3
+motor>=3.1.2
+aiobotocore>=2.5.0
+
+# Testing
+pytest>=7.3.1
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+moto>=4.1.6
+
+# Utilities
+python-dotenv>=1.0.0
+pyyaml>=6.0
+jsonschema>=4.17.3
+structlog>=23.1.0
+
+# Development
+black>=23.3.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.2.0 
